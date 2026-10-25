@@ -4,8 +4,13 @@ import { Area, AreaChart, CartesianGrid, Cell, Line, ResponsiveContainer, Toolti
 const API=(import.meta as any).env.VITE_API_BASE_URL||'http://127.0.0.1:5000';
 type Group={name:string;features:string[]};type HistoryItem={id:string;at:string;prediction:number;count:number;summary:string};
 const nav=[['overview','Overview',LayoutDashboard],['lab','Prediction Lab',FlaskConical],['explorer','Data Explorer',BarChart3],['insights','Model Insights',Microscope],['history','History',History]] as const;
-const fmt=(n:number)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(n);const nice=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
-export default function App(){
+const fmt = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+  }).format(n);
+
+const nice = (s: string) =>
+  s.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());export default function App(){
  const [page,setPage]=useState('overview'),[mobile,setMobile]=useState(false),[groups,setGroups]=useState<Group[]>([]),[values,setValues]=useState<Record<string,string>>({}),[featureNames,setFeatureNames]=useState<string[]>([]),[open,setOpen]=useState<string[]>([]),[query,setQuery]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState(''),[prediction,setPrediction]=useState<number|null>(null),[review,setReview]=useState(false),[summary,setSummary]=useState<any>(null),[insights,setInsights]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[total,setTotal]=useState(0),[pageNo,setPageNo]=useState(1),[tableQuery,setTableQuery]=useState(''),[history,setHistory]=useState<HistoryItem[]>(()=>JSON.parse(localStorage.getItem('cryonex-history')||'[]'));
  useEffect(()=>{fetch(API+'/features').then(r=>r.json()).then(d=>{setGroups(d.groups||[]);setFeatureNames(d.features||[]);setOpen(d.groups?.map((g:Group)=>g.name)||[])}).catch(()=>setError('Cannot reach CryoNex API. Start the backend at 127.0.0.1:5000.'));fetch(API+'/dataset/summary').then(r=>r.json()).then(setSummary).catch(()=>{});fetch(API+'/model/insights').then(r=>r.json()).then(setInsights).catch(()=>{});},[]);
  const completed=featureNames.filter(f=>values[f]!==undefined&&values[f]!==''&&Number.isFinite(Number(values[f]))).length;
