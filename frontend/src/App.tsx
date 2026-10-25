@@ -1,34 +1,689 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Atom, ArrowDown, ArrowRight, BarChart3, Beaker, ChevronDown, ChevronRight, CircleHelp, Clock3, Database, FlaskConical, History, LayoutDashboard, Menu, Microscope, RotateCcw, Search, ShieldCheck, Sparkles, Thermometer, X, Zap } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, Cell, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from 'recharts';
-const API = (import.meta.env.VITE_API_BASE_URL || "https://cyronex.onrender.com").replace(/\/$/, "");
-type Group={name:string;features:string[]};type HistoryItem={id:string;at:string;prediction:number;count:number;summary:string};
-const nav=[['overview','Overview',LayoutDashboard],['lab','Prediction Lab',FlaskConical],['explorer','Data Explorer',BarChart3],['insights','Model Insights',Microscope],['history','History',History]] as const;
-const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 2,
-  }).format(n);
+import { Activity, Atom, ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Database, FlaskConical, History, LayoutDashboard, Microscope, RotateCcw, ShieldCheck, Thermometer } from 'lucide-react';
+import './quick.css';
 
-const nice = (s: string) =>
-  s.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());export default function App(){
- const [page,setPage]=useState('overview'),[mobile,setMobile]=useState(false),[groups,setGroups]=useState<Group[]>([]),[values,setValues]=useState<Record<string,string>>({}),[featureNames,setFeatureNames]=useState<string[]>([]),[open,setOpen]=useState<string[]>([]),[query,setQuery]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState(''),[prediction,setPrediction]=useState<number|null>(null),[review,setReview]=useState(false),[summary,setSummary]=useState<any>(null),[insights,setInsights]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[total,setTotal]=useState(0),[pageNo,setPageNo]=useState(1),[tableQuery,setTableQuery]=useState(''),[history,setHistory]=useState<HistoryItem[]>(()=>JSON.parse(localStorage.getItem('cryonex-history')||'[]'));
- useEffect(()=>{fetch(API+'/features').then(r=>r.json()).then(d=>{setGroups(d.groups||[]);setFeatureNames(d.features||[]);setOpen(d.groups?.map((g:Group)=>g.name)||[])}).catch(()=>setError('Cannot reach CryoNex API. Check the API URL and backend CORS configuration.'));fetch(API+'/dataset/summary').then(r=>r.json()).then(setSummary).catch(()=>{});fetch(API+'/model/insights').then(r=>r.json()).then(setInsights).catch(()=>{});},[]);
- const completed=featureNames.filter(f=>values[f]!==undefined&&values[f]!==''&&Number.isFinite(Number(values[f]))).length;
- const filteredGroups=useMemo(()=>groups.map(g=>({...g,features:g.features.filter(f=>f.toLowerCase().includes(query.toLowerCase()))})).filter(g=>g.features.length),[groups,query]);
- async function sample(){setError('');setLoading(true);try{const r=await fetch(API+'/sample');const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to load dataset row');setValues(Object.fromEntries(featureNames.map(f=>[f,String(d.features[f])])));setError(`Loaded actual dataset row #${d.index+1}. Its recorded target is ${fmt(d.critical_temp)} K.`)}catch(e:any){setError(e.message)}finally{setLoading(false)}}
- async function predict(){setError('');setLoading(true);try{const body=Object.fromEntries(featureNames.map(f=>[f,Number(values[f])]));if(Object.values(body).some(v=>!Number.isFinite(v)))throw Error('Enter a finite numeric value for every model feature.');const r=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Prediction failed');const val=Number(d.predicted_critical_temperature_K);if(!Number.isFinite(val))throw Error('The API returned a malformed prediction.');setPrediction(val);setReview(false);setPage('result');const item={id:crypto.randomUUID(),at:new Date().toISOString(),prediction:val,count:featureNames.length,summary:`${featureNames.length} engineered descriptors`};const next=[item,...history].slice(0,100);setHistory(next);localStorage.setItem('cryonex-history',JSON.stringify(next));}catch(e:any){setError(e.message)}finally{setLoading(false)}}
- async function loadRecords(p=1,q=tableQuery){setLoading(true);try{const d=await fetch(`${API}/dataset/records?page=${p}&page_size=15&q=${encodeURIComponent(q)}`).then(r=>r.json());setRows(d.rows||[]);setTotal(d.total||0);setPageNo(p)}catch{setError('Dataset records could not be loaded.')}finally{setLoading(false)}}
- useEffect(()=>{if(page==='explorer'){loadRecords(1);if(!summary)fetch(API+'/dataset/summary').then(r=>r.json()).then(setSummary).catch(()=>{})}},[page]);
- const goto=(p:string)=>{setPage(p);setMobile(false);setError('');window.scrollTo({top:0,behavior:'smooth'})};const setVal=(f:string,v:string)=>setValues(x=>({...x,[f]:v}));const reset=()=>{setValues({});setPrediction(null);setError('');setReview(false)};
- return <div className="app-shell"><div className="ambient"><div className="orbital o1"/><div className="orbital o2"/><div className="orbital o3"/><div className="glow"/></div><header className="topbar"><button className="brand" onClick={()=>goto('overview')}><span className="brand-mark"><Atom size={19}/></span><span>CRYO<span className="brand-accent">NEX</span><small>QUANTUM MATERIALS INTELLIGENCE</small></span></button><nav className="desktop-nav">{nav.map(([id,label,Icon])=><button key={id} className={page===id?'active':''} onClick={()=>goto(id)}><Icon size={15}/>{label}</button>)}</nav><div className="top-actions"><span className="api-status"><i/> MODEL ONLINE</span><button className="mobile-toggle" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}>{mobile?<X/>:<Menu/>}</button></div>{mobile&&<div className="mobile-nav">{nav.map(([id,label,Icon])=><button key={id} onClick={()=>goto(id)}><Icon size={17}/>{label}</button>)}</div>}</header>
- {page==='overview'&&<main className="hero page-width"><section className="hero-copy"><div className="eyebrow"><span/> COMPUTATIONAL MATERIALS DISCOVERY <span className="eyeline"/></div><h1>Discover the<br/><span>critical frontier.</span></h1><p className="hero-lede">A new lens on superconductivity. Explore engineered material descriptors and estimate critical temperatures with a trained XGBoost model.</p><div className="hero-buttons"><button className="button primary" onClick={()=>goto('lab')}>Launch Prediction Lab <ArrowRight size={16}/></button><button className="button secondary" onClick={()=>goto('insights')}>Explore the science <ArrowDown size={15}/></button></div><div className="hero-stats"><div><strong>81</strong><span>ENGINEERED FEATURES</span></div><div><strong>XGBoost</strong><span>REGRESSION MODEL</span></div><div><strong>K</strong><span>TEMPERATURE OUTPUT</span></div></div></section><section className="visual-card"><div className="visual-top"><span><i/> MATERIAL STATE / 001</span><span>FIELD VIEW</span></div><div className="quantum"><div className="ring ring-a"/><div className="ring ring-b"/><div className="ring ring-c"/><div className="axis ax-x"/><div className="axis ax-y"/><div className="axis ax-z"/><div className="core"><Atom size={45} strokeWidth={1}/></div><i className="particle p1"/><i className="particle p2"/><i className="particle p3"/><i className="particle p4"/><i className="particle p5"/><div className="wave w1"/><div className="wave w2"/><div className="wave w3"/></div><div className="visual-caption"><span>Coherent states</span><span className="visual-line"/><span className="mono">Tc → ? K</span></div><div className="data-chip chip-top"><Zap size={13}/> QUANTUM FIELD <b>ACTIVE</b></div><div className="data-chip chip-bottom"><span className="mini-bars">▂▅▃▇▅▆</span> MATERIAL SIGNAL</div></section><div className="hero-foot"><span>01 / INTELLIGENCE FOR THE COLD FRONTIER</span><span>SCROLL TO EXPLORE <ArrowDown size={12}/></span></div>
- <section className="feature-strip"><article><div className="feature-icon"><Activity/></div><div><span className="eyebrow tiny">THE ENGINE</span><h3>XGBoost regression</h3><p>A trained gradient-boosted model loaded from the project’s saved artifact.</p></div><ArrowRight className="feature-arrow"/></article><article><div className="feature-icon violet"><Atom/></div><div><span className="eyebrow tiny">THE DESCRIPTORS</span><h3>81 engineered features</h3><p>Composition-derived numerical properties, grouped for scientific exploration.</p></div><ArrowRight className="feature-arrow"/></article><article><div className="feature-icon ice"><Thermometer/></div><div><span className="eyebrow tiny">THE FRONTIER</span><h3>Critical temperature</h3><p>Explore model estimates and dataset targets in Kelvin.</p></div><ArrowRight className="feature-arrow"/></article></section>
- <footer className="footer"><span>CRYONEX <b>·</b> QUANTUM MATERIALS INTELLIGENCE</span><span>BUILT FOR THE FRONTIER <Atom size={13}/></span></footer></main>}
- {page==='lab'&&<main className="page-width content-page"><PageHead kicker="PREDICTION LAB / 01" title="Shape a material." sub="Enter all 81 engineered numerical descriptors to request a real estimate from the trained model."/><div className="lab-layout"><aside className="lab-side panel"><div className="panel-title"><FlaskConical size={16}/> SESSION SETUP</div><div className="progress-label"><span>FEATURE COMPLETION</span><b>{completed}<i>/</i>{featureNames.length}</b></div><div className="progress-track"><i style={{width:`${featureNames.length?completed/featureNames.length*100:0}%`}}/></div><button className="button secondary full" onClick={sample} disabled={loading}><Database size={15}/> Fill from real dataset row</button><p className="side-note">Uses the first actual sample from <em>CriticalTemperature.csv</em>, with its target column excluded from inputs.</p><button className="text-button" onClick={reset}><RotateCcw size={14}/> Reset all values</button><div className="side-callout"><CircleHelp size={16}/><p>A chemical formula alone cannot generate these engineered descriptors. Supply values from a material dataset or use an actual sample row.</p></div></aside><section className="feature-editor"><div className="editor-toolbar"><div className="searchbox"><Search size={16}/><input aria-label="Search feature names" placeholder="Search 81 features..." value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear search"><X size={14}/></button>}</div><span>{filteredGroups.reduce((s,g)=>s+g.features.length,0)} descriptors shown</span></div>{filteredGroups.map((g,gi)=><section className="group panel" key={g.name}><button className="group-header" onClick={()=>setOpen(open.includes(g.name)?open.filter(x=>x!==g.name):[...open,g.name])}><span className="group-number">{String(gi+1).padStart(2,'0')}</span><span className="group-name">{g.name}<small>{g.features.length} FEATURES</small></span><span className="group-complete">{g.features.filter(f=>values[f]!==undefined&&values[f]!=='').length}/{g.features.length}</span>{open.includes(g.name)?<ChevronDown size={17}/>:<ChevronRight size={17}/>}</button>{open.includes(g.name)&&<div className="feature-grid">{g.features.map(f=><label className="field" key={f}><span title={f}>{f}</span><input type="number" step="any" value={values[f]??''} onChange={e=>setVal(f,e.target.value)} placeholder="Enter value" aria-label={f}/></label>)}</div>}</section>)}<div className="submit-row"><div><ShieldCheck size={16}/> Values sent directly to the local model API</div><button className="button primary" onClick={()=>{setReview(true);setError('')}} disabled={completed!==featureNames.length||loading}>Review inputs <ArrowRight size={16}/></button></div>{error&&<div className="alert">{error}</div>}</section></div>{review&&<div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&setReview(false)}><div className="modal panel"><button className="modal-close" onClick={()=>setReview(false)}><X/></button><div className="feature-icon"><ShieldCheck/></div><span className="eyebrow tiny">FINAL CHECK</span><h2>Ready to estimate.</h2><p>Your {featureNames.length} descriptors will be submitted to the CryoNex XGBoost model.</p><div className="review-summary"><span>Complete inputs <b>{completed} / {featureNames.length}</b></span><span>Output unit <b>Kelvin (K)</b></span><span>Result type <b>Model estimate</b></span></div><button className="button primary full" onClick={predict} disabled={loading}>{loading?'Computing…':'Run prediction'} <ArrowRight size={16}/></button>{error&&<div className="alert">{error}</div>}</div></div>}</main>}
- {page==='result'&&<main className="page-width content-page"><PageHead kicker="PREDICTION RESULT / 02" title="An estimate, in focus." sub="Generated by the saved XGBoost model from your submitted engineered descriptors."/><div className="result-card panel"><div className="result-orb"><div><Atom size={26}/><span>MODEL ESTIMATE</span><strong>{prediction===null?'—':fmt(prediction)}<small>K</small></strong><em>CRITICAL TEMPERATURE</em></div></div><div className="result-detail"><span className="eyebrow tiny">COMPUTATIONAL OUTPUT</span><h2>{prediction===null?'No result available':'A new point on the frontier.'}</h2><p>This value is a model estimate in Kelvin, not experimental verification. No confidence interval is generated by this application.</p><div className="result-metrics"><div><span>MODEL</span><b>XGBoost regression</b></div><div><span>INPUTS</span><b>{featureNames.length} descriptors</b></div><div><span>GENERATED</span><b>{history[0]?new Date(history[0].at).toLocaleString(): 'Just now'}</b></div></div><div className="hero-buttons"><button className="button primary" onClick={()=>{reset();goto('lab')}}>Make another prediction <ArrowRight size={16}/></button><button className="button secondary" onClick={()=>goto('history')}>View history <Clock3 size={15}/></button></div></div></div><div className="disclaimer"><ShieldCheck size={15}/> Model estimate only · Material inputs and output are not experimentally validated by this interface.</div></main>}
- {page==='explorer'&&<main className="page-width content-page"><PageHead kicker="DATA EXPLORER / 03" title="Read the material record." sub="Explore the actual CriticalTemperature.csv dataset: its target distribution, descriptor statistics, and source rows."/>{summary?<><div className="stat-grid"><Stat label="SOURCE RECORDS" value={fmt(summary.rows)} icon={<Database/>}/><Stat label="ENGINEERED FEATURES" value={summary.features} icon={<Atom/>}/><Stat label="MEAN TARGET" value={`${fmt(summary.target_stats.mean)} K`} icon={<Thermometer/>}/><Stat label="MISSING CELLS" value={fmt(summary.missing_values)} icon={<Activity/>}/></div><div className="chart-grid"><section className="panel chart-card"><div className="chart-head"><div><span className="eyebrow tiny">TARGET DISTRIBUTION</span><h3>Critical temperature</h3></div><span className="unit-pill">KELVIN</span></div><div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={summary.distribution}><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#59def5" stopOpacity={.32}/><stop offset="100%" stopColor="#59def5" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#202f3b" vertical={false}/><XAxis dataKey="mid" tickFormatter={fmt} stroke="#70818f"/><YAxis stroke="#70818f"/><Tooltip contentStyle={{background:'#0a151e',border:'1px solid #283b49',borderRadius:10}} labelFormatter={v=>`${fmt(Number(v))} K`}/><Area dataKey="count" stroke="#68e4f5" fill="url(#fill)" strokeWidth={2}/></AreaChart></ResponsiveContainer></div></section><section className="panel chart-card target-card"><div className="chart-head"><div><span className="eyebrow tiny">TARGET RANGE</span><h3>Dataset snapshot</h3></div><Thermometer size={18}/></div><div className="range-value"><strong>{fmt(summary.target_stats.min)}</strong><span>TO</span><strong>{fmt(summary.target_stats.max)}<small>K</small></strong></div><div className="range-track"><i/></div><div className="target-stats"><span>MEDIAN <b>{fmt(summary.target_stats.median)} K</b></span><span>STD DEV <b>{fmt(summary.target_stats.std)} K</b></span></div><p className="side-note">Statistics are computed from non-missing target values in the source CSV.</p></section></div><section className="panel table-panel"><div className="table-heading"><div><span className="eyebrow tiny">SOURCE DATA</span><h3>Material descriptors</h3></div><div className="table-search"><Search size={14}/><input placeholder="Find by target temperature…" value={tableQuery} onChange={e=>setTableQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadRecords(1)}/><button className="button secondary small" onClick={()=>loadRecords(1)}>Search</button></div></div><div className="table-wrap"><table><thead><tr>{['#',...featureNames.slice(0,7),'…', 'critical_temp'].map(k=><th key={k}>{k==='#'?'ROW':nice(k)}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={`${pageNo}-${i}`}><td className="muted">{(pageNo-1)*15+i+1}</td>{featureNames.slice(0,7).map(f=><td key={f}>{r[f]===null?'—':fmt(r[f])}</td>)}<td className="muted">…</td><td className="temp-cell">{r.critical_temp===null?'—':`${fmt(r.critical_temp)} K`}</td></tr>)}</tbody></table>{!rows.length&&<div className="empty">{loading?'Loading source records…':'No matching rows found.'}</div>}</div><div className="pagination"><span>{total.toLocaleString()} matching source rows</span><div><button className="button secondary small" disabled={pageNo<=1} onClick={()=>loadRecords(pageNo-1)}>Previous</button><span>Page {pageNo} of {Math.max(1,Math.ceil(total/15))}</span><button className="button secondary small" disabled={pageNo>=Math.ceil(total/15)} onClick={()=>loadRecords(pageNo+1)}>Next</button></div></div></section></>:<LoadingBox text="Loading dataset summary…"/>}</main>}
- {page==='insights'&&<main className="page-width content-page"><PageHead kicker="MODEL INSIGHTS / 04" title="Inside the estimator." sub="A transparent view of the saved XGBoost artifact, its engineered inputs, and results recorded in the project notebook."/><div className="insight-grid"><section className="panel model-card"><div className="model-symbol"><Atom size={38}/></div><span className="eyebrow tiny">THE MODEL</span><h2>XGBoost<br/>regression</h2><p>Gradient boosted decision trees learn sequential corrections across the engineered descriptor space. CryoNex loads the existing <code>superconductor_model.json</code> artifact; it does not retrain it.</p><div className="model-facts"><span>INPUT FEATURES <b>{featureNames.length}</b></span><span>OUTPUT <b>Critical temp · K</b></span><span>FEATURE IMPORTANCE <b>Split gain proxy</b></span></div></section><section className="panel importance-card"><div className="chart-head"><div><span className="eyebrow tiny">MODEL FEATURE IMPORTANCE</span><h3>Largest relative importances</h3></div><span className="unit-pill">MODEL ARTIFACT</span></div>{insights?<div className="importance-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={insights.importance.slice(0,12)} layout="vertical" margin={{left:12,right:20}}><CartesianGrid stroke="#202f3b" horizontal={false}/><XAxis type="number" stroke="#70818f" tickFormatter={v=>Number(v).toFixed(2)}/><YAxis type="category" dataKey="feature" width={175} stroke="#a5b4bf" tick={{fontSize:10}}/><Tooltip contentStyle={{background:'#0a151e',border:'1px solid #283b49',borderRadius:10}}/><Bar dataKey="importance" fill="#62dff0" radius={[0,4,4,0]}>{insights.importance.slice(0,12).map((_:any,i:number)=><Cell key={i} fill={i===0?'#7eeafa':i<3?'#62dff0':'#26849a'}/>)}</Bar></BarChart></ResponsiveContainer></div>:<LoadingBox text="Loading model importance…"/>}<p className="side-note">Importance indicates how the model uses descriptors in its fitted trees. It does not show causation or scientific mechanism.</p></section></div><section className="panel metrics-panel"><div className="metric-intro"><span className="eyebrow tiny">NOTEBOOK EVALUATION · XGBOOST</span><h3>Recorded holdout results</h3><p>Values transcribed from the notebook’s 80/20 split (random_state 42). The saved model and current evaluation procedure may differ; these are not a live benchmark.</p></div><div className="metrics"><div><span>R² SCORE</span><strong>0.9264</strong></div><div><span>MAE</span><strong>5.56 <small>K</small></strong></div><div><span>RMSE</span><strong>9.31 <small>K</small></strong></div></div></section><div className="disclaimer"><CircleHelp size={15}/> Feature importance is a model behavior measure, not evidence of causation. Performance metrics are reported from the project notebook only.</div></main>}
- {page==='history'&&<main className="page-width content-page"><PageHead kicker="SESSION HISTORY / 05" title="Your recent estimates." sub="Prediction history is stored locally in this browser and is not sent to the server."/><section className="panel history-panel"><div className="table-heading"><div><span className="eyebrow tiny">LOCAL SESSION</span><h3>{history.length} {history.length===1?'prediction':'predictions'}</h3></div>{history.length>0&&<button className="button secondary small" onClick={()=>{setHistory([]);localStorage.removeItem('cryonex-history')}}><X size={14}/> Clear history</button>}</div>{history.length?<div className="history-list">{history.map((h,i)=><div className="history-row" key={h.id}><span className="history-index">{String(history.length-i).padStart(2,'0')}</span><span className="history-atom"><Atom size={18}/></span><span className="history-main"><b>{fmt(h.prediction)} K</b><small>MODEL ESTIMATE · {new Date(h.at).toLocaleString()}</small></span><span className="history-inputs">{h.count} engineered descriptors</span><button className="icon-button" aria-label="View estimate" onClick={()=>{setPrediction(h.prediction);goto('result')}}><ArrowRight size={16}/></button></div>)}</div>:<div className="empty-state"><div className="feature-icon"><Clock3/></div><h3>No estimates yet.</h3><p>Predictions you make in this browser will appear here.</p><button className="button primary" onClick={()=>goto('lab')}>Launch Prediction Lab <ArrowRight size={15}/></button></div>}</section></main>}
- <div className="global-footer page-width"><span>CRYONEX <b>·</b> DISCOVER THE CRITICAL FRONTIER</span><span>MODEL ESTIMATES ARE NOT EXPERIMENTAL VERIFICATION</span></div></div>
+const API = (import.meta.env.VITE_API_BASE_URL || 'https://cyronex.onrender.com').replace(/\/$/, '');
+const PAGE_SIZE = 20;
+const REQUEST_TIMEOUT_MS = 60_000;
+const DISCLAIMER = 'This is a machine-learning prediction based on the supplied material features. It is an estimate and does not constitute experimental confirmation.';
+
+type Page = 'quick' | 'result' | 'overview' | 'explorer' | 'insights' | 'history';
+type QuickRecord = {
+  index: number;
+  features: Record<string, number> | null;
+  criticalTemp: number | null;
+};
+type HistoryItem = {
+  id: string;
+  at: string;
+  prediction: number;
+  recordIndex?: number;
+  features?: Record<string, number>;
+  criticalTemp?: number | null;
+};
+type DatasetSummary = {
+  rows: number;
+  features: number;
+  missing_values: number;
+  target_stats: { min: number; max: number; mean: number; median: number };
+};
+type ModelInsights = {
+  model: string;
+  feature_count: number;
+  importance: Array<{ feature: string; importance: number }>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-function PageHead({kicker,title,sub}:{kicker:string;title:string;sub:string}){return <div className="page-head"><span className="eyebrow"><span/>{kicker}</span><h1>{title}</h1><p>{sub}</p></div>};function Stat({label,value,icon}:{label:string;value:any;icon:any}){return <div className="panel stat-card"><div className="stat-icon">{icon}</div><span>{label}</span><strong>{value}</strong></div>};function LoadingBox({text}:{text:string}){return <div className="panel loading-box"><span className="spinner"/>{text}</div>}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+async function requestJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API}${path}`, {
+      ...init,
+      signal: controller.signal,
+    });
+    const payload: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message =
+        typeof payload === 'object' &&
+        payload !== null &&
+        'error' in payload &&
+        typeof payload.error === 'string'
+          ? payload.error
+          : `The API returned an error (${response.status}).`;
+      throw new Error(message);
+    }
+    if (payload === null) throw new Error('The API returned an unreadable response.');
+    return payload as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('The API took too long to respond. Please try again.');
+    }
+    if (error instanceof TypeError) {
+      throw new Error('Could not reach the CryoNex API. Check your connection and try again.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function readFeatures(response: unknown): string[] {
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    !('features' in response) ||
+    !Array.isArray(response.features) ||
+    response.features.length !== 81 ||
+    new Set(response.features).size !== 81 ||
+    response.features.some((feature) => typeof feature !== 'string')
+  ) {
+    throw new Error('The API did not return the model’s complete set of 81 features.');
+  }
+  return response.features;
+}
+
+function toRecords(
+  response: unknown,
+  features: string[],
+): { records: QuickRecord[]; page: number; total: number } {
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    !('rows' in response) ||
+    !Array.isArray(response.rows) ||
+    !('page' in response) ||
+    typeof response.page !== 'number' ||
+    !Number.isInteger(response.page) ||
+    !('page_size' in response) ||
+    typeof response.page_size !== 'number' ||
+    !Number.isInteger(response.page_size) ||
+    response.page_size < 1 ||
+    !('total' in response) ||
+    typeof response.total !== 'number' ||
+    !Number.isInteger(response.total) ||
+    response.rows.some(
+      (row) => typeof row !== 'object' || row === null || Array.isArray(row),
+    )
+  ) {
+    throw new Error('The dataset API returned an unexpected response.');
+  }
+  const data = response as {
+    rows: Array<Record<string, unknown>>;
+    page: number;
+    page_size: number;
+    total: number;
+  };
+  return {
+    page: data.page,
+    total: data.total,
+    records: data.rows.map((row, index) => {
+      const values = features.map((feature) => row[feature]);
+      const complete = values.every(
+        (value): value is number => typeof value === 'number' && Number.isFinite(value),
+      );
+      const target = row.critical_temp;
+      return {
+        index: (data.page - 1) * data.page_size + index,
+        features: complete
+          ? Object.fromEntries(features.map((feature, i) => [feature, values[i]]))
+          : null,
+        criticalTemp:
+          typeof target === 'number' && Number.isFinite(target) ? target : null,
+      };
+    }),
+  };
+}
+
+function toSampleRecord(response: unknown, featureNames: string[]): QuickRecord {
+  if (
+    !isRecord(response) ||
+    !('index' in response) ||
+    typeof response.index !== 'number' ||
+    !Number.isInteger(response.index) ||
+    !('features' in response) ||
+    !isRecord(response.features) ||
+    Object.keys(response.features).length !== featureNames.length ||
+    !('critical_temp' in response) ||
+    !isFiniteNumber(response.critical_temp)
+  ) {
+    throw new Error('This dataset sample is incomplete and cannot be used for prediction.');
+  }
+  const orderedFeatures: Record<string, number> = {};
+  for (const feature of featureNames) {
+    const value = response.features[feature];
+    if (!isFiniteNumber(value)) {
+      throw new Error('This dataset sample is incomplete and cannot be used for prediction.');
+    }
+    orderedFeatures[feature] = value;
+  }
+  return {
+    index: response.index,
+    features: orderedFeatures,
+    criticalTemp: response.critical_temp,
+  };
+}
+
+function readPrediction(response: unknown): number {
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    !('predicted_critical_temperature_K' in response) ||
+    typeof response.predicted_critical_temperature_K !== 'number' ||
+    !Number.isFinite(response.predicted_critical_temperature_K)
+  ) {
+    throw new Error('The API did not return a valid predicted temperature.');
+  }
+  return response.predicted_critical_temperature_K;
+}
+
+function readHistory(): HistoryItem[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem('cryonex-history') || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored.filter(
+      (item): item is HistoryItem =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof item.id === 'string' &&
+        typeof item.at === 'string' &&
+        typeof item.prediction === 'number' &&
+        Number.isFinite(item.prediction) &&
+        (item.recordIndex === undefined ||
+          (Number.isInteger(item.recordIndex) && item.recordIndex >= 0)) &&
+        (item.features === undefined ||
+          (typeof item.features === 'object' &&
+            item.features !== null &&
+            !Array.isArray(item.features) &&
+            Object.keys(item.features).length === 81 &&
+            Object.values(item.features).every(
+              (value) => typeof value === 'number' && Number.isFinite(value),
+            ))),
+    );
+  } catch {
+    return [];
+  }
+}
+
+const fmt = (value: number) =>
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+const nice = (value: string) =>
+  value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const navigation = [
+  { id: 'quick' as const, label: 'Quick prediction', icon: FlaskConical },
+  { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
+  { id: 'explorer' as const, label: 'Dataset', icon: Database },
+  { id: 'insights' as const, label: 'Model insights', icon: Microscope },
+  { id: 'history' as const, label: 'History', icon: History },
+];
+
+export default function App() {
+  const [page, setPage] = useState<Page>('quick');
+  const [retryToken, setRetryToken] = useState(0);
+  const [featureNames, setFeatureNames] = useState<string[]>([]);
+  const [records, setRecords] = useState<QuickRecord[]>([]);
+  const [recordPage, setRecordPage] = useState(1);
+  const [recordTotal, setRecordTotal] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [loadingRecords, setLoadingRecords] = useState(true);
+  const [predicting, setPredicting] = useState(false);
+  const [error, setError] = useState('');
+  const [prediction, setPrediction] = useState<number | null>(null);
+  const [resultRecord, setResultRecord] = useState<QuickRecord | null>(null);
+  const [summary, setSummary] = useState<DatasetSummary | null>(null);
+  const [insights, setInsights] = useState<ModelInsights | null>(null);
+  const [showFeatures, setShowFeatures] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>(readHistory);
+
+  const selectedRecord = records.find((record) => record.index === selectedIndex) ?? null;
+  const pageCount = Math.max(1, Math.ceil(recordTotal / PAGE_SIZE));
+  const topFeatures = useMemo(
+    () => insights?.importance.slice(0, 5) ?? [],
+    [insights],
+  );
+
+  async function loadRecords(nextPage: number, names = featureNames) {
+    setLoadingRecords(true);
+    setError('');
+    try {
+      const payload = await requestJSON<unknown>(
+        `/dataset/records?page=${nextPage}&page_size=${PAGE_SIZE}&q=`,
+      );
+      const result = toRecords(payload, names);
+      setRecords(result.records);
+      setRecordPage(result.page);
+      setRecordTotal(result.total);
+      setSelectedIndex((current) =>
+        result.records.some((record) => record.index === current && record.features)
+          ? current
+          : result.records.find((record) => record.features !== null)?.index ?? null,
+      );
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Dataset records could not be loaded. Please try again.',
+      );
+    } finally {
+      setLoadingRecords(false);
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    async function initialize() {
+      try {
+        const response = await requestJSON<unknown>('/features');
+        const names = readFeatures(response);
+        if (!active) return;
+        setFeatureNames(names);
+        await loadRecords(1, names);
+      } catch (loadError) {
+        if (!active) return;
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'CryoNex could not load the model features.',
+        );
+        setLoadingRecords(false);
+      }
+    }
+    void initialize();
+
+    void requestJSON<DatasetSummary>('/dataset/summary')
+      .then((data) => active && setSummary(data))
+      .catch(() => undefined);
+    void requestJSON<ModelInsights>('/model/insights')
+      .then((data) => active && setInsights(data))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [retryToken]);
+
+  function selectRecord(index: number) {
+    setSelectedIndex(index);
+    setPrediction(null);
+    setResultRecord(null);
+    setError('');
+  }
+
+  async function loadSample() {
+    setLoadingRecords(true);
+    setError('');
+    try {
+      const index = selectedIndex ?? 0;
+      const response = await requestJSON<unknown>(`/sample?index=${index}`);
+      if (!featureNames.length) throw new Error('Model features are not available. Please retry.');
+      const sampleRecord = toSampleRecord(response, featureNames);
+      setRecords((current) => [
+        sampleRecord,
+        ...current.filter((record) => record.index !== sampleRecord.index),
+      ]);
+      setSelectedIndex(sampleRecord.index);
+      setPrediction(null);
+    } catch (sampleError) {
+      setError(
+        sampleError instanceof Error
+          ? sampleError.message
+          : 'A valid dataset sample could not be loaded.',
+      );
+    } finally {
+      setLoadingRecords(false);
+    }
+  }
+
+  async function predict() {
+    setError('');
+    if (!selectedRecord?.features || featureNames.length !== 81) {
+      setError('Select a complete dataset record before requesting a prediction.');
+      return;
+    }
+    const payload = Object.fromEntries(
+      featureNames.map((feature) => [feature, selectedRecord.features?.[feature]]),
+    );
+    if (
+      Object.keys(payload).length !== 81 ||
+      featureNames.some(
+        (feature) =>
+          typeof payload[feature] !== 'number' || !Number.isFinite(payload[feature]),
+      )
+    ) {
+      setError('This record does not contain all 81 valid model features.');
+      return;
+    }
+
+    setPredicting(true);
+    try {
+      const response = await requestJSON<unknown>(
+        '/predict',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+      const predictedTemperature = readPrediction(response);
+      setPrediction(predictedTemperature);
+      setResultRecord({
+        ...selectedRecord,
+        features: { ...selectedRecord.features },
+      });
+      setShowFeatures(false);
+      setPage('result');
+      const item: HistoryItem = {
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+        prediction: predictedTemperature,
+        recordIndex: selectedRecord.index,
+        features: { ...selectedRecord.features },
+        criticalTemp: selectedRecord.criticalTemp,
+      };
+      const next = [item, ...history].slice(0, 100);
+      setHistory(next);
+      localStorage.setItem('cryonex-history', JSON.stringify(next));
+    } catch (predictionError) {
+      setError(
+        predictionError instanceof Error
+          ? predictionError.message
+          : 'The prediction could not be completed. Please try again.',
+      );
+    } finally {
+      setPredicting(false);
+    }
+  }
+
+  function goTo(nextPage: Page) {
+    setPage(nextPage);
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  return (
+    <div className="app-shell quick-app">
+      <header className="topbar quick-topbar">
+        <button className="brand quick-brand" onClick={() => goTo('quick')} aria-label="CryoNex quick prediction">
+          <span className="brand-mark"><Atom size={19} /></span>
+          <span>CRYO<span className="brand-accent">NEX</span><small>QUANTUM MATERIALS INTELLIGENCE</small></span>
+        </button>
+        <nav className="desktop-nav quick-nav" aria-label="Main navigation">
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              className={page === id ? 'active' : ''}
+              onClick={() => goTo(id)}
+              aria-current={page === id ? 'page' : undefined}
+            >
+              <Icon size={15} />{label}
+            </button>
+          ))}
+        </nav>
+        <div className="quick-status"><i /> Saved XGBoost model</div>
+      </header>
+
+      <main className="quick-main page-width">
+        {page === 'quick' && (
+          <>
+            <section className="quick-intro">
+              <span className="eyebrow"><span /> QUICK PREDICTION</span>
+              <h1>Explore a material.<br /><span>Estimate its critical temperature.</span></h1>
+              <p>Choose a real superconductivity dataset record. CryoNex will send its complete set of model features to the saved XGBoost estimator.</p>
+            </section>
+
+            <section className="quick-workspace">
+              <div className="quick-selector panel">
+                <div className="quick-section-heading">
+                  <span className="quick-step">01</span>
+                  <div><span className="eyebrow tiny">DATASET RECORD</span><h2>Select a material record</h2></div>
+                  <Database size={19} />
+                </div>
+
+                {loadingRecords && records.length === 0 ? (
+                  <LoadingBox text="Connecting to the dataset…" />
+                ) : (
+                  <>
+                    <label className="quick-label" htmlFor="material-record">Available records</label>
+                    <div className="quick-select-wrap">
+                      <select
+                        id="material-record"
+                        value={selectedIndex ?? ''}
+                        onChange={(event) => selectRecord(Number(event.target.value))}
+                        disabled={loadingRecords || !records.some((record) => record.features)}
+                      >
+                        {!records.some((record) => record.features) && <option value="">No complete records on this page</option>}
+                        {records.map((record) => (
+                          <option
+                            key={record.index}
+                            value={record.index}
+                            disabled={!record.features}
+                          >
+                            Dataset record #{record.index + 1}{record.criticalTemp === null ? '' : ` · recorded Tc ${fmt(record.criticalTemp)} K`}{!record.features ? ' · incomplete features' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} aria-hidden="true" />
+                    </div>
+                    <div className="quick-paging">
+                      <span>{recordTotal.toLocaleString()} source records</span>
+                      <div>
+                        <button className="icon-button" aria-label="Previous records" onClick={() => void loadRecords(recordPage - 1)} disabled={loadingRecords || recordPage <= 1}><ChevronLeft size={16} /></button>
+                        <span>Page {recordPage} of {pageCount}</span>
+                        <button className="icon-button" aria-label="Next records" onClick={() => void loadRecords(recordPage + 1)} disabled={loadingRecords || recordPage >= pageCount}><ChevronRight size={16} /></button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {selectedRecord?.features ? (
+                  <div className="quick-record-summary">
+                    <div className="quick-record-title">
+                      <span className="quick-record-mark"><Atom size={19} /></span>
+                      <div><span>SELECTED SOURCE ROW</span><strong>Record #{selectedRecord.index + 1}</strong></div>
+                      {selectedRecord.criticalTemp !== null && <span className="quick-target">Dataset Tc {fmt(selectedRecord.criticalTemp)} K</span>}
+                    </div>
+                    <p>The source dataset provides engineered numerical descriptors, not a material name or chemical formula. This prediction uses the selected row’s actual feature values.</p>
+                    <div className="quick-properties">
+                      {['number_of_elements', 'mean_atomic_mass', 'mean_atomic_radius'].map((feature) => (
+                        <div key={feature}><span>{nice(feature)}</span><strong>{selectedRecord.features?.[feature] === undefined ? '—' : fmt(selectedRecord.features[feature])}</strong></div>
+                      ))}
+                    </div>
+                    <button className="quick-text-action" onClick={() => void loadSample()} disabled={loadingRecords}>
+                      <RotateCcw size={14} /> {loadingRecords ? 'Loading sample…' : `Reload this record from /sample`}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="quick-empty">
+                    <CircleHelp size={18} />
+                    <span>{records.length ? 'No complete 81-feature records are available on this page. Try another page.' : 'Dataset records are unavailable. Retry to connect to the backend.'}</span>
+                    <button className="button secondary small" onClick={() => featureNames.length === 81 ? void loadRecords(recordPage) : setRetryToken((current) => current + 1)} disabled={loadingRecords}>Retry</button>
+                  </div>
+                )}
+
+                {error && <div className="alert" role="alert">{error}</div>}
+                <div className="quick-predict-row">
+                  <div><ShieldCheck size={16} /><span>81 validated features · no generated inputs</span></div>
+                  <button className="button primary quick-predict-button" onClick={() => void predict()} disabled={!selectedRecord?.features || predicting}>
+                    {predicting ? <><span className="spinner" /> Predicting…</> : <>Predict Critical Temperature <ArrowRight size={16} /></>}
+                  </button>
+                </div>
+              </div>
+
+              <aside className="quick-side">
+                <div className="quick-info-card panel">
+                  <span className="quick-info-icon"><Activity size={19} /></span>
+                  <span className="eyebrow tiny">HOW IT WORKS</span>
+                  <h3>Real data in, model estimate out.</h3>
+                  <p>The selected source row includes all 81 features expected by the trained model. Only those feature values are sent for prediction; the dataset target is not included in the input.</p>
+                  <div className="quick-model-tag"><Atom size={15} /> XGBoost regression</div>
+                </div>
+                {summary && (
+                  <div className="quick-dataset-card panel">
+                    <span className="eyebrow tiny">SOURCE DATASET</span>
+                    <strong>{summary.rows.toLocaleString()}</strong>
+                    <span>records · {summary.features} model features</span>
+                    <div>Target range: {fmt(summary.target_stats.min)}–{fmt(summary.target_stats.max)} K</div>
+                  </div>
+                )}
+              </aside>
+            </section>
+          </>
+        )}
+
+        {page === 'result' && (
+          <section className="quick-result-page">
+            <button className="quick-back" onClick={() => goTo('quick')}><ArrowLeft size={15} /> Back to Quick Prediction</button>
+            <div className="quick-result-card panel">
+              <div className="quick-result-label"><span className="eyebrow"><span /> MODEL ESTIMATE</span><span className="unit-pill">KELVIN</span></div>
+              <div className="quick-temperature">{prediction === null ? '—' : fmt(prediction)}<span>K</span></div>
+              <h1>Predicted critical temperature</h1>
+              <div className="quick-result-record">
+                <span className="quick-record-mark"><Atom size={18} /></span>
+                <div><span>INPUT DATASET RECORD</span><strong>{resultRecord ? `Record #${resultRecord.index + 1}` : 'Dataset record unavailable'}</strong></div>
+                {resultRecord?.criticalTemp !== null && resultRecord?.criticalTemp !== undefined && (
+                  <div className="quick-result-target"><span>RECORDED DATASET Tc</span><strong>{fmt(resultRecord.criticalTemp)} K</strong></div>
+                )}
+              </div>
+              <p className="quick-result-explainer">This estimate was generated from the selected record’s complete set of {resultRecord?.features ? featureNames.length : 0} input features.</p>
+              <details className="quick-feature-details" open={showFeatures} onToggle={(event) => setShowFeatures(event.currentTarget.open)}>
+                <summary>View the 81 input features <ChevronDown size={16} /></summary>
+                {resultRecord?.features && (
+                  <div className="quick-feature-list">
+                    {featureNames.map((feature) => (
+                      <div key={feature}><span>{nice(feature)}</span><strong>{fmt(resultRecord.features![feature])}</strong></div>
+                    ))}
+                  </div>
+                )}
+              </details>
+              <div className="quick-disclaimer"><ShieldCheck size={17} /><p>{DISCLAIMER}</p></div>
+              <button className="button primary quick-another" onClick={() => goTo('quick')}>Predict Another Material <ArrowRight size={16} /></button>
+            </div>
+            {insights && (
+              <div className="quick-result-model">
+                <Microscope size={16} />
+                <span>Model information</span>
+                <strong>{insights.model} · {insights.feature_count} input features</strong>
+              </div>
+            )}
+          </section>
+        )}
+
+        {page === 'overview' && (
+          <section className="quick-secondary-page">
+            <PageHead kicker="CRYONEX" title="Quantum materials intelligence" sub="Explore superconductivity dataset records and request model estimates from a saved XGBoost model." />
+            <button className="button primary" onClick={() => goTo('quick')}>Start a Quick Prediction <ArrowRight size={16} /></button>
+            <div className="quick-overview-stats">
+              <Stat label="DATASET RECORDS" value={summary ? summary.rows.toLocaleString() : '—'} icon={<Database />} />
+              <Stat label="MODEL FEATURES" value={featureNames.length || '—'} icon={<Atom />} />
+              <Stat label="ESTIMATOR" value={insights?.model ?? '—'} icon={<Activity />} />
+            </div>
+          </section>
+        )}
+
+        {page === 'explorer' && (
+          <section className="quick-secondary-page">
+            <PageHead kicker="DATASET EXPLORER" title="Explore source records" sub="Browse real rows from the superconductivity dataset. Select any complete record to use it in Quick Prediction." />
+            {error && <div className="alert" role="alert">{error}</div>}
+            <div className="quick-dataset-card panel">
+              <div className="quick-explorer-stats">
+                <Stat label="SOURCE RECORDS" value={summary ? summary.rows.toLocaleString() : '—'} icon={<Database />} />
+                <Stat label="MODEL FEATURES" value={featureNames.length || '—'} icon={<Atom />} />
+                <Stat label="MEAN DATASET Tc" value={summary ? `${fmt(summary.target_stats.mean)} K` : '—'} icon={<Thermometer />} />
+              </div>
+              <div className="quick-table-wrap">
+                <table>
+                  <thead><tr><th>Record</th>{featureNames.slice(0, 5).map((feature) => <th key={feature}>{nice(feature)}</th>)}<th>Recorded Tc</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {records.map((record) => (
+                      <tr key={record.index}>
+                        <td>#{record.index + 1}</td>
+                        {featureNames.slice(0, 5).map((feature) => <td key={feature}>{record.features ? fmt(record.features[feature]) : '—'}</td>)}
+                        <td>{record.criticalTemp === null ? '—' : `${fmt(record.criticalTemp)} K`}</td>
+                        <td><button className="quick-table-action" disabled={!record.features} onClick={() => { selectRecord(record.index); goTo('quick'); }}>Select</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {loadingRecords && <LoadingBox text="Loading dataset records…" />}
+              </div>
+              <div className="quick-paging">
+                <span>{recordTotal.toLocaleString()} source records</span>
+                <div>
+                  <button className="button secondary small" onClick={() => void loadRecords(recordPage - 1)} disabled={loadingRecords || recordPage <= 1}>Previous</button>
+                  <span>Page {recordPage} of {pageCount}</span>
+                  <button className="button secondary small" onClick={() => void loadRecords(recordPage + 1)} disabled={loadingRecords || recordPage >= pageCount}>Next</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {page === 'insights' && (
+          <section className="quick-secondary-page">
+            <PageHead kicker="MODEL INSIGHTS" title="Inside the estimator" sub="Information reported by the saved model artifact and current API." />
+            {insights ? (
+              <div className="quick-insights panel">
+                <div className="quick-info-icon"><Microscope size={20} /></div>
+                <span className="eyebrow tiny">MODEL ARTIFACT</span>
+                <h2>{insights.model}</h2>
+                <p>{insights.feature_count} input features · predictions are estimates, not experimental measurements.</p>
+                <h3>Most important model features</h3>
+                {topFeatures.map((feature) => (
+                  <div className="quick-importance" key={feature.feature}>
+                    <span>{nice(feature.feature)}</span>
+                    <div><i style={{ width: `${Math.max(0, Math.min(100, feature.importance * 100))}%` }} /></div>
+                    <strong>{fmt(feature.importance)}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : <LoadingBox text="Model insights are not available right now." />}
+          </section>
+        )}
+
+        {page === 'history' && (
+          <section className="quick-secondary-page">
+            <PageHead kicker="LOCAL HISTORY" title="Recent predictions" sub="This list is saved in this browser only and is not sent to the backend." />
+            <div className="quick-history panel">
+              {history.length ? history.map((item) => (
+                <div className="quick-history-row" key={item.id}>
+                  <Atom size={17} />
+                  <div><strong>{fmt(item.prediction)} K</strong><span>{item.recordIndex === undefined ? 'Historical estimate' : `Record #${item.recordIndex + 1}`} · {new Date(item.at).toLocaleString()}</span></div>
+                  <button className="icon-button" aria-label="View saved prediction" onClick={() => {
+                    const restored = item.features
+                      ? { index: item.recordIndex ?? 0, features: item.features, criticalTemp: item.criticalTemp ?? null }
+                      : records.find((record) => record.index === item.recordIndex) ?? null;
+                    setResultRecord(restored);
+                    setPrediction(item.prediction);
+                    goTo('result');
+                  }}><ArrowRight size={16} /></button>
+                </div>
+              )) : <div className="quick-empty"><History size={19} /> No predictions yet. Choose a dataset record to get started.</div>}
+              {history.length > 0 && <button className="button secondary small" onClick={() => { setHistory([]); localStorage.removeItem('cryonex-history'); }}>Clear history</button>}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <footer className="global-footer page-width"><span>CRYONEX · QUANTUM MATERIALS INTELLIGENCE</span><span>MODEL ESTIMATES ARE NOT EXPERIMENTAL VERIFICATION</span></footer>
+    </div>
+  );
+}
+
+function PageHead({ kicker, title, sub }: { kicker: string; title: string; sub: string }) {
+  return <div className="page-head"><span className="eyebrow"><span />{kicker}</span><h1>{title}</h1><p>{sub}</p></div>;
+}
+
+function Stat({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
+  return <div className="panel stat-card"><div className="stat-icon">{icon}</div><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function LoadingBox({ text }: { text: string }) {
+  return <div className="panel loading-box"><span className="spinner" />{text}</div>;
+}
