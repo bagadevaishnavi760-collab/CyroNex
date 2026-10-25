@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, Atom, ArrowDown, ArrowRight, BarChart3, Beaker, ChevronDown, ChevronRight, CircleHelp, Clock3, Database, FlaskConical, History, LayoutDashboard, Menu, Microscope, RotateCcw, Search, ShieldCheck, Sparkles, Thermometer, X, Zap } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from 'recharts';
-const API=(import.meta as any).env.VITE_API_BASE_URL||'http://127.0.0.1:5000';
+const API = ((import.meta as any).env.VITE_API_BASE_URL || "https://cyronex.onrender.com").replace(/\/$/, "");
 type Group={name:string;features:string[]};type HistoryItem={id:string;at:string;prediction:number;count:number;summary:string};
 const nav=[['overview','Overview',LayoutDashboard],['lab','Prediction Lab',FlaskConical],['explorer','Data Explorer',BarChart3],['insights','Model Insights',Microscope],['history','History',History]] as const;
 const fmt = (n: number) =>
