@@ -9,7 +9,11 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = ROOT / "superconductor_model.json"
 DATA_PATH = ROOT / "Super-Conductor-Critical-Temperature-Prediction-main" / "CriticalTemperature.csv"
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://127.0.0.1:5173", "http://localhost:5173"]}})
+CORS(app, resources={r"/*": {"origins": [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "https://cyro-nex-rqob.vercel.app",
+]}})
 model = xgb.XGBRegressor()
 model.load_model(str(MODEL_PATH))
 FEATURES = list(model.feature_names_in_)
@@ -98,4 +102,3 @@ def insights():
     return jsonify({"model": "XGBoost regressor", "feature_count": len(FEATURES), "importance": importance})
 
 if __name__ == "__main__": app.run(host="127.0.0.1", port=5000, debug=False)
-

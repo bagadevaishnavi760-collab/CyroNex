@@ -211,7 +211,7 @@ VITE_API_BASE_URL=http://127.0.0.1:5000
 
 For production, set this variable to the public URL of the deployed Flask API before building the frontend.
 
-The Flask CORS allowlist currently permits local Vite origins. Update it to allow the deployed frontend's origin before production use.
+The Flask CORS allowlist permits local Vite origins and `https://cyro-nex-rqob.vercel.app`. Update the allowlist if the deployed frontend origin changes.
 
 Do not expose credentials, private keys, or other secrets in frontend environment variables.
 

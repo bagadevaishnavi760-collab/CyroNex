@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, Atom, ArrowDown, ArrowRight, BarChart3, Beaker, ChevronDown, ChevronRight, CircleHelp, Clock3, Database, FlaskConical, History, LayoutDashboard, Menu, Microscope, RotateCcw, Search, ShieldCheck, Sparkles, Thermometer, X, Zap } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from 'recharts';
-const API = ((import.meta as any).env.VITE_API_BASE_URL || "https://cyronex.onrender.com").replace(/\/$/, "");
+const API = (import.meta.env.VITE_API_BASE_URL || "https://cyronex.onrender.com").replace(/\/$/, "");
 type Group={name:string;features:string[]};type HistoryItem={id:string;at:string;prediction:number;count:number;summary:string};
 const nav=[['overview','Overview',LayoutDashboard],['lab','Prediction Lab',FlaskConical],['explorer','Data Explorer',BarChart3],['insights','Model Insights',Microscope],['history','History',History]] as const;
 const fmt = (n: number) =>
@@ -12,7 +12,7 @@ const fmt = (n: number) =>
 const nice = (s: string) =>
   s.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());export default function App(){
  const [page,setPage]=useState('overview'),[mobile,setMobile]=useState(false),[groups,setGroups]=useState<Group[]>([]),[values,setValues]=useState<Record<string,string>>({}),[featureNames,setFeatureNames]=useState<string[]>([]),[open,setOpen]=useState<string[]>([]),[query,setQuery]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState(''),[prediction,setPrediction]=useState<number|null>(null),[review,setReview]=useState(false),[summary,setSummary]=useState<any>(null),[insights,setInsights]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[total,setTotal]=useState(0),[pageNo,setPageNo]=useState(1),[tableQuery,setTableQuery]=useState(''),[history,setHistory]=useState<HistoryItem[]>(()=>JSON.parse(localStorage.getItem('cryonex-history')||'[]'));
- useEffect(()=>{fetch(API+'/features').then(r=>r.json()).then(d=>{setGroups(d.groups||[]);setFeatureNames(d.features||[]);setOpen(d.groups?.map((g:Group)=>g.name)||[])}).catch(()=>setError('Cannot reach CryoNex API. Start the backend at 127.0.0.1:5000.'));fetch(API+'/dataset/summary').then(r=>r.json()).then(setSummary).catch(()=>{});fetch(API+'/model/insights').then(r=>r.json()).then(setInsights).catch(()=>{});},[]);
+ useEffect(()=>{fetch(API+'/features').then(r=>r.json()).then(d=>{setGroups(d.groups||[]);setFeatureNames(d.features||[]);setOpen(d.groups?.map((g:Group)=>g.name)||[])}).catch(()=>setError('Cannot reach CryoNex API. Check the API URL and backend CORS configuration.'));fetch(API+'/dataset/summary').then(r=>r.json()).then(setSummary).catch(()=>{});fetch(API+'/model/insights').then(r=>r.json()).then(setInsights).catch(()=>{});},[]);
  const completed=featureNames.filter(f=>values[f]!==undefined&&values[f]!==''&&Number.isFinite(Number(values[f]))).length;
  const filteredGroups=useMemo(()=>groups.map(g=>({...g,features:g.features.filter(f=>f.toLowerCase().includes(query.toLowerCase()))})).filter(g=>g.features.length),[groups,query]);
  async function sample(){setError('');setLoading(true);try{const r=await fetch(API+'/sample');const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to load dataset row');setValues(Object.fromEntries(featureNames.map(f=>[f,String(d.features[f])])));setError(`Loaded actual dataset row #${d.index+1}. Its recorded target is ${fmt(d.critical_temp)} K.`)}catch(e:any){setError(e.message)}finally{setLoading(false)}}
