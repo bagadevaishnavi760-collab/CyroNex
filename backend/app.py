@@ -51,6 +51,8 @@ def predict():
     missing = [f for f in FEATURES if f not in data]
     if missing: return jsonify({"error": "Missing required features.", "missing_features": missing}), 400
     try:
+        if any(isinstance(data[f], bool) for f in FEATURES):
+            raise ValueError("All feature values must be finite numbers.")
         vals = [float(data[f]) for f in FEATURES]
         if not all(math.isfinite(v) for v in vals): raise ValueError("All feature values must be finite numbers.")
         result = float(model.predict(pd.DataFrame([vals], columns=FEATURES))[0])
@@ -59,6 +61,58 @@ def predict():
     except Exception:
         app.logger.exception("Prediction failed")
         return jsonify({"error": "Prediction failed."}), 500
+
+@app.post("/model/explain")
+def explain():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Send a JSON object containing all model features."}), 400
+    missing = [feature for feature in FEATURES if feature not in data]
+    if missing:
+        return jsonify({"error": "Missing required features.", "missing_features": missing}), 400
+    try:
+        if any(isinstance(data[feature], bool) for feature in FEATURES):
+            raise ValueError("All feature values must be finite numbers.")
+        values = [float(data[feature]) for feature in FEATURES]
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("All feature values must be finite numbers.")
+        frame = pd.DataFrame([values], columns=FEATURES)
+    except (ValueError, TypeError) as error:
+        return jsonify({"error": str(error)}), 400
+    try:
+        matrix = xgb.DMatrix(frame, feature_names=FEATURES)
+        contributions = model.get_booster().predict(matrix, pred_contribs=True)[0]
+        prediction = float(model.predict(frame)[0])
+        contribution_values = [float(value) for value in contributions]
+        base_value = contribution_values[-1]
+        feature_contributions = contribution_values[:-1]
+        if len(feature_contributions) != len(FEATURES) or not all(
+            math.isfinite(value) for value in contribution_values
+        ):
+            raise ValueError("The model returned invalid explanation values.")
+        if not math.isclose(
+            sum(contribution_values),
+            prediction,
+            rel_tol=1e-4,
+            abs_tol=1e-4,
+        ):
+            raise ValueError("The explanation does not reconcile with the model prediction.")
+        return jsonify({
+            "method": "XGBoost TreeSHAP contributions",
+            "prediction": prediction,
+            "base_value": base_value,
+            "contributions": [
+                {
+                    "feature": feature,
+                    "value": values[index],
+                    "contribution": feature_contributions[index],
+                }
+                for index, feature in enumerate(FEATURES)
+            ],
+        })
+    except Exception:
+        app.logger.exception("Model explanation failed")
+        return jsonify({"error": "Model explanation is unavailable."}), 503
 
 @app.get("/sample")
 def sample():

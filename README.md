@@ -44,9 +44,9 @@ CryoNex is a machine learning-powered web application for exploring superconduct
 
 The critical temperature (\(T_c\)) is the temperature below which a material exhibits superconducting behavior under specified conditions. Estimating this property from material descriptors can help researchers explore relationships between material composition and superconducting behavior.
 
-CryoNex combines a React and TypeScript frontend, a Flask REST API, a supplied superconductivity dataset, and an existing trained XGBoost regression model.
+CryoNex combines a React and TypeScript frontend, a Flask REST API, a supplied superconductivity dataset, and an existing trained XGBoost regression model. Material Discovery supports candidate profiles based on editable source-row templates or complete manually entered feature sets.
 
-The application provides an interactive interface to explore dataset statistics, inspect material records, view model feature importances, and estimate critical temperatures.
+The application provides an interactive interface to build and compare candidate profiles, estimate critical temperatures, inspect source records and recorded targets, view global model feature importance, and request per-candidate TreeSHAP explanations.
 
 ### Live Application
 
@@ -58,10 +58,12 @@ The application provides an interactive interface to explore dataset statistics,
 
 ## Key Features
 
-- **Critical Temperature Prediction:** Estimate superconducting critical temperature in Kelvin using the saved XGBoost model.
+- **Material Discovery:** Build candidate profiles from editable dataset templates or enter a complete set of model descriptors.
+- **Candidate Comparison:** Rank candidates by predicted Tc and compare their feature completeness.
 - **81 Engineered Features:** Work with the numerical material descriptors expected by the model.
 - **Dataset Explorer:** Inspect dataset records, target-temperature distributions, and descriptive statistics.
-- **Model Insights:** Explore feature importances exposed by the trained model.
+- **Model Insights:** Explore global model feature importance and per-candidate TreeSHAP contributions.
+- **Reliability Checks:** Flag candidate inputs outside the source dataset’s observed feature ranges.
 - **Sample Material Records:** Load existing dataset rows as starting points for predictions.
 - **Prediction History:** Review previous predictions stored in the browser's local storage.
 - **REST API:** Access prediction, dataset, and model-insight functionality through Flask endpoints.
@@ -100,9 +102,10 @@ CryoNex uses a client-server architecture in which the frontend communicates wit
 |       React + TypeScript         |
 |          Vite Frontend           |
 |                                  |
-| Prediction UI                    |
+| Material Discovery               |
+| Candidate Comparison             |
 | Dataset Explorer                 |
-| Model Insights                   |
+| Model Insights / TreeSHAP        |
 | Prediction History               |
 +----------------+-----------------+
                  |
@@ -128,12 +131,12 @@ CryoNex uses a client-server architecture in which the frontend communicates wit
 
 ### Request Flow
 
-1. The user enters material descriptor values in the frontend.
-2. The frontend sends a request to the Flask API.
-3. The backend validates the input against the expected feature schema.
+1. The user starts with an editable dataset template or supplies all 81 feature values.
+2. The frontend validates completeness, numeric values, and canonical feature order.
+3. The frontend sends only model features to the Flask API; the recorded dataset target is not included.
 4. The existing trained model generates a critical-temperature estimate.
 5. The API returns the prediction in JSON format.
-6. The frontend displays the result to the user.
+6. Candidate estimates can be compared and explained using model-derived TreeSHAP contributions.
 
 The saved model is used for inference; normal prediction requests do not require model retraining.
 
@@ -351,6 +354,7 @@ The Flask backend exposes the following endpoints.
 | GET | `/dataset/summary` | Retrieve dataset size, missing-cell count, target statistics, and descriptor statistics |
 | GET | `/dataset/records?page=1&page_size=20&q=` | Retrieve paginated dataset records and optionally filter results |
 | GET | `/model/insights` | Retrieve feature importances from the saved model |
+| POST | `/model/explain` | Retrieve per-candidate XGBoost TreeSHAP contributions for a complete 81-feature input |
 
 ### Example: Check API Availability
 
@@ -369,6 +373,10 @@ The `POST /predict` endpoint accepts a JSON object containing the required featu
 The request must match the exact schema expected by the backend.
 
 Use the `/features` endpoint to retrieve the canonical feature list.
+
+Material Discovery uses a selected source row only as a starting template. Its `critical_temp` is not included in a prediction request. Candidate estimates do not confirm experimental superconductivity or chemical feasibility.
+
+`POST /model/explain` accepts the same numerical feature object as `/predict`. It returns feature contributions and a baseline only when TreeSHAP contributions reconcile with the saved model prediction. Global model importance and per-candidate contributions are distinct views.
 
 ### Prediction Response
 
@@ -472,6 +480,25 @@ A static frontend host does not replace the Flask API. Both services must be ava
 ---
 
 ## Testing and Validation
+
+Run the focused backend API and TreeSHAP tests from the repository root:
+
+```powershell
+python -m unittest discover -s backend\tests -v
+```
+
+Run the frontend candidate-validation tests with Node.js 22:
+
+```powershell
+cd frontend
+npm test
+```
+
+Build and type-check the production frontend:
+
+```powershell
+npm run build
+```
 
 The project may include a model test script at the repository root.
 
