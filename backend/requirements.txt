@@ -2,3 +2,4 @@ Flask>=3.0,<4
 flask-cors>=4.0,<6
 xgboost>=2.0,<4
 pandas>=2.0,<4
+gunicorn
